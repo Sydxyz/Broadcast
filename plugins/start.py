@@ -5,7 +5,7 @@ from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 
-@Client.on_message(filters.command("start"))
+@Client.on_message(filters.command("start") & ~filters.private & ~filters.channel)
 async def start(client, message):
     if message.chat.type in ['group', 'supergroup']:
         buttons = [
