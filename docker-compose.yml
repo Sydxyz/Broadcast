@@ -8,7 +8,7 @@ services:
 
     environment:
 
-      BOT_TOKEN: 6006903252:AAGtqD6NIFHvZkqK1Pmhgfs8hkDXCg7u_iM
+      BOT_TOKEN: 5445924111:AAF7c3JFB-KQLOx_fYzzz0bJ3L2JXaYrT6o
 
       API_ID: 10992058
 
