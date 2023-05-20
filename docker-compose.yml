@@ -1,14 +1,27 @@
-version: "3.8"
+version: "3.10"
+
 services:
+
    worker:
+
     build: .
+
     environment:
-      BOT_TOKEN: $BOT_TOKEN
-      API_ID: $API_ID
-      API_HASH: $API_HASH
-      CHANNELS: $CHANNELS
-      ADMINS: $ADMINS
-      LOG_CHANNEL: $LOG_CHANNEL
+
+      BOT_TOKEN: 6006903252:AAGtqD6NIFHvZkqK1Pmhgfs8hkDXCg7u_iM
+
+      API_ID: 10992058
+
+      API_HASH: 2fbb57a8a00b544bb09a2e3f80cedaf7
+
+      CHANNELS: -1001897229584
+
+      ADMINS: 1733124290
+
+      LOG_CHANNEL: -1001897229584
+
       DATABASE_NAME: $DATABASE_NAME
-      DATABASE_URI: $DATABASE_URI
+
+      DATABASE_URI: mongodb+srv://syd:syz@cluster0.yvubuqh.mongodb.net/?retryWrites=true&w=majority
+
       HEROKU_API_KEY: $HEROKU_API_KEY
