@@ -1,6 +1,6 @@
 
 from Script import script
-from  import script
+from info import LOG_CHANNEL
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 
