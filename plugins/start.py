@@ -1,5 +1,6 @@
 
-
+from Script import script
+from  import script
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 
