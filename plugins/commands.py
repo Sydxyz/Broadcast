@@ -18,7 +18,7 @@ import base64
 
 
 
- @Client.on_message(filters.command('start'))
+ @Client.on_message(filters.command('start',COMMAND_HAND_LER) & f_onw_fliter)
 async def settings(client, message):
 
         btn = [[
