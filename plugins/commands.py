@@ -1,195 +1,284 @@
+from __future__ import unicode_literals
 
 import os
-import logging
-import random
+
+import requests
+
+import aiohttp
+
+import yt_dlp
+
 import asyncio
-from Script import script
-from pyrogram import Client, filters, enums
-from pyrogram.errors import ChatAdminRequired, FloodWait
-from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-from database.ia_filterdb import Media, get_file_details, unpack_new_file_id, get_bad_files
-from database.users_chats_db import db
-from info import CHANNELS, ADMINS, AUTH_CHANNEL, LOG_CHANNEL, PICS, BATCH_FILE_CAPTION, CUSTOM_FILE_CAPTION, PROTECT_CONTENT, CHNL_LNK, GRP_LNK, REQST_CHANNEL, SUPPORT_CHAT_ID, MAX_B_TN, IS_VERIFY
-from utils import get_settings, get_size, is_subscribed, save_group_settings, temp, verify_user, check_token, check_verification, get_token, send_all
-from database.connections_mdb import active_connection
-import re
-import json
-import base64
 
+import math
 
+import time
 
- @Client.on_message(filters.command('settings'))
-async def settings(client, message):
-    userid = message.from_user.id if message.from_user else None
-    if not userid:
-        return await message.reply(f"Yᴏᴜ ᴀʀᴇ ᴀɴᴏɴʏᴍᴏᴜs ᴀᴅᴍɪɴ. Usᴇ /connect {message.chat.id} ɪɴ PM")
-    chat_type = message.chat.type
+import wget
 
-    if chat_type == enums.ChatType.PRIVATE:
-        grpid = await active_connection(str(userid))
-        if grpid is not None:
-            grp_id = grpid
-            try:
-                chat = await client.get_chat(grpid)
-                title = chat.title
-            except:
-                await message.reply_text("Mᴀᴋᴇ sᴜʀᴇ I'ᴍ ᴘʀᴇsᴇɴᴛ ɪɴ ʏᴏᴜʀ ɢʀᴏᴜᴘ !", quote=True)
-                return
-        else:
-            await message.reply_text("I'ᴍ ɴᴏᴛ ᴄᴏɴɴᴇᴄᴛᴇᴅ ᴛᴏ ᴀɴʏ ɢʀᴏᴜᴘs !", quote=True)
-            return
+import aiofiles
 
-    elif chat_type in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
-        grp_id = message.chat.id
-        title = message.chat.title
+from pyrogram import filters, Client
 
-    else:
-        return
+from pyrogram.errors import FloodWait, MessageNotModified
 
-    st = await client.get_chat_member(grp_id, userid)
-    if (
-            st.status != enums.ChatMemberStatus.ADMINISTRATOR
-            and st.status != enums.ChatMemberStatus.OWNER
-            and str(userid) not in ADMINS
-    ):
-        return
-    
-    settings = await get_settings(grp_id)
+from pyrogram.types import Message
+
+from youtube_search import YoutubeSearch
+
+from youtubesearchpython import SearchVideos
+
+from yt_dlp import YoutubeDL
+
+import youtube_dl
+
+import requests
+
+def time_to_seconds(time):
+
+    stringt = str(time)
+
+    return sum(int(x) * 60 ** i for i, x in enumerate(reversed(stringt.split(':'))))
+
+@Client.on_message(filters.command('song') & ~filters.private & ~filters.channel)
+
+def song(client, message):
+
+    user_id = message.from_user.id 
+
+    user_name = message.from_user.first_name 
+
+    rpk = "["+user_name+"](tg://user?id="+str(user_id)+")"
+
+    query = ''
+
+    for i in message.command[1:]:
+
+        query += ' ' + str(i)
+
+    print(query)
+
+    m = message.reply("**ѕєαrchíng чσur ѕσng...!**")
+
+    ydl_opts = {"format": "bestaudio[ext=m4a]"}
 
     try:
-        if settings['max_btn']:
-            settings = await get_settings(grp_id)
-    except KeyError:
-        await save_group_settings(grp_id, 'max_btn', False)
-        settings = await get_settings(grp_id)
-    if 'is_shortlink' not in settings.keys():
-        await save_group_settings(grp_id, 'is_shortlink', False)
-    else:
-        pass
 
-    if settings is not None:
-        buttons = [
-            [
-                InlineKeyboardButton(
-                    'Fɪʟᴛᴇʀ Bᴜᴛᴛᴏɴ',
-                    callback_data=f'setgs#button#{settings["button"]}#{grp_id}',
-                ),
-                InlineKeyboardButton(
-                    'Sɪɴɢʟᴇ' if settings["button"] else 'Dᴏᴜʙʟᴇ',
-                    callback_data=f'setgs#button#{settings["button"]}#{grp_id}',
-                ),
-            ],
-            [
-                InlineKeyboardButton(
-                    'Fɪʟᴇ Sᴇɴᴅ Mᴏᴅᴇ',
-                    callback_data=f'setgs#botpm#{settings["botpm"]}#{grp_id}',
-                ),
-                InlineKeyboardButton(
-                    'Mᴀɴᴜᴀʟ Sᴛᴀʀᴛ' if settings["botpm"] else 'Aᴜᴛᴏ Sᴇɴᴅ',
-                    callback_data=f'setgs#botpm#{settings["botpm"]}#{grp_id}',
-                ),
-            ],
-            [
-                InlineKeyboardButton(
-                    'Pʀᴏᴛᴇᴄᴛ Cᴏɴᴛᴇɴᴛ',
-                    callback_data=f'setgs#file_secure#{settings["file_secure"]}#{grp_id}',
-                ),
-                InlineKeyboardButton(
-                    '✔ Oɴ' if settings["file_secure"] else '✘ Oғғ',
-                    callback_data=f'setgs#file_secure#{settings["file_secure"]}#{grp_id}',
-                ),
-            ],
-            [
-                InlineKeyboardButton(
-                    'Iᴍᴅʙ',
-                    callback_data=f'setgs#imdb#{settings["imdb"]}#{grp_id}',
-                ),
-                InlineKeyboardButton(
-                    '✔ Oɴ' if settings["imdb"] else '✘ Oғғ',
-                    callback_data=f'setgs#imdb#{settings["imdb"]}#{grp_id}',
-                ),
-            ],
-            [
-                InlineKeyboardButton(
-                    'Sᴘᴇʟʟ Cʜᴇᴄᴋ',
-                    callback_data=f'setgs#spell_check#{settings["spell_check"]}#{grp_id}',
-                ),
-                InlineKeyboardButton(
-                    '✔ Oɴ' if settings["spell_check"] else '✘ Oғғ',
-                    callback_data=f'setgs#spell_check#{settings["spell_check"]}#{grp_id}',
-                ),
-            ],
-            [
-                InlineKeyboardButton(
-                    'Wᴇʟᴄᴏᴍᴇ Msɢ',
-                    callback_data=f'setgs#welcome#{settings["welcome"]}#{grp_id}',
-                ),
-                InlineKeyboardButton(
-                    '✔ Oɴ' if settings["welcome"] else '✘ Oғғ',
-                    callback_data=f'setgs#welcome#{settings["welcome"]}#{grp_id}',
-                ),
-            ],
-            [
-                InlineKeyboardButton(
-                    'Aᴜᴛᴏ-Dᴇʟᴇᴛᴇ',
-                    callback_data=f'setgs#auto_delete#{settings["auto_delete"]}#{grp_id}',
-                ),
-                InlineKeyboardButton(
-                    '10 Mɪɴs' if settings["auto_delete"] else '✘ Oғғ',
-                    callback_data=f'setgs#auto_delete#{settings["auto_delete"]}#{grp_id}',
-                ),
-            ],
-            [
-                InlineKeyboardButton(
-                    'Aᴜᴛᴏ-Fɪʟᴛᴇʀ',
-                    callback_data=f'setgs#auto_ffilter#{settings["auto_ffilter"]}#{grp_id}',
-                ),
-                InlineKeyboardButton(
-                    '✔ Oɴ' if settings["auto_ffilter"] else '✘ Oғғ',
-                    callback_data=f'setgs#auto_ffilter#{settings["auto_ffilter"]}#{grp_id}',
-                ),
-            ],
-            [
-                InlineKeyboardButton(
-                    'Mᴀx Bᴜᴛᴛᴏɴs',
-                    callback_data=f'setgs#max_btn#{settings["max_btn"]}#{grp_id}',
-                ),
-                InlineKeyboardButton(
-                    '10' if settings["max_btn"] else f'{MAX_B_TN}',
-                    callback_data=f'setgs#max_btn#{settings["max_btn"]}#{grp_id}',
-                ),
-            ],
-            [
-                InlineKeyboardButton(
-                    'SʜᴏʀᴛLɪɴᴋ',
-                    callback_data=f'setgs#is_shortlink#{settings["is_shortlink"]}#{grp_id}',
-                ),
-                InlineKeyboardButton(
-                    '✔ Oɴ' if settings["is_shortlink"] else '✘ Oғғ',
-                    callback_data=f'setgs#is_shortlink#{settings["is_shortlink"]}#{grp_id}',
-                ),
-            ],
-        ]
+        results = YoutubeSearch(query, max_results=1).to_dict()
 
-        btn = [[
-                InlineKeyboardButton("Oᴘᴇɴ Hᴇʀᴇ ↓", callback_data=f"opnsetgrp#{grp_id}"),
-                InlineKeyboardButton("Oᴘᴇɴ Iɴ PM ⇲", callback_data=f"opnsetpm#{grp_id}")
-              ]]
+        link = f"https://youtube.com{results[0]['url_suffix']}"
 
-        reply_markup = InlineKeyboardMarkup(buttons)
-        if chat_type in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
-            await message.reply_text(
-                text="<b>Dᴏ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ᴏᴘᴇɴ sᴇᴛᴛɪɴɢs ʜᴇʀᴇ ?</b>",
-                reply_markup=InlineKeyboardMarkup(btn),
-                disable_web_page_preview=True,
-                parse_mode=enums.ParseMode.HTML,
-                reply_to_message_id=message.id
-            )
-        else:
-            await message.reply_text(
-                text=f"<b>Cʜᴀɴɢᴇ Yᴏᴜʀ Sᴇᴛᴛɪɴɢs Fᴏʀ {title} As Yᴏᴜʀ Wɪsʜ ⚙</b>",
-                reply_markup=reply_markup,
-                disable_web_page_preview=True,
-                parse_mode=enums.ParseMode.HTML,
-                reply_to_message_id=message.id
-            )
+        #print(results)
+
+        title = results[0]["title"][:40]       
+
+        thumbnail = results[0]["thumbnails"][0]
+
+        thumb_name = f'thumb{title}.jpg'
+
+        thumb = requests.get(thumbnail, allow_redirects=True)
+
+        open(thumb_name, 'wb').write(thumb.content)
+
+        performer = f"[ᗷETᗩ]" 
+
+        duration = results[0]["duration"]
+
+        url_suffix = results[0]["url_suffix"]
+
+        views = results[0]["views"]
+
+    except Exception as e:
+
+        m.edit(
+
+            "**𝙵𝙾𝚄𝙽𝙳 𝙽𝙾𝚃𝙷𝙸𝙽𝙶 𝙿𝙻𝙴𝙰𝚂𝙴 𝙲𝙾𝚁𝚁𝙴𝙲𝚃 𝚃𝙷𝙴 𝚂𝙿𝙴𝙻𝙻𝙸𝙽𝙶, 𝙸𝚃 𝙼𝙸𝙶𝙷𝚃 𝙱𝙴 𝙰 𝙼𝙾𝚅𝙸𝙴 𝙾𝚁 𝚂𝙴𝚁𝙸𝙴𝚂, 𝚂𝙴𝙰𝚁𝙲𝙷 𝙰𝙽𝚈 𝙾𝚃𝙷𝙴𝚁 𝚂𝙾𝙽𝙶**"
+
+        )
+
+        print(str(e))
+
+        return
+
+    m.edit("**dσwnlσαdíng чσur ѕσng...!**")
+
+    try:
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+
+            info_dict = ydl.extract_info(link, download=False)
+
+            audio_file = ydl.prepare_filename(info_dict)
+
+            ydl.process_info(info_dict)
+
+        rep = '**BY›› [MФD MФ∇IΞS Ж ™](https://t.me/mod_Moviezx)**'
+
+        secmul, dur, dur_arr = 1, 0, duration.split(':')
+
+        for i in range(len(dur_arr)-1, -1, -1):
+
+            dur += (int(dur_arr[i]) * secmul)
+
+            secmul *= 60
+
+        message.reply_audio(audio_file, caption=rep, parse_mode='md',quote=False, title=title, duration=dur, performer=performer, thumb=thumb_name)
+
+        m.delete()
+
+    except Exception as e:
+
+        m.edit("**🚫 𝙴𝚁𝚁𝙾𝚁 🚫**")
+
+        print(e)
+
+    try:
+
+        os.remove(audio_file)
+
+        os.remove(thumb_name)
+
+    except Exception as e:
+
+        print(e)
+
+def get_text(message: Message) -> [None,str]:
+
+    text_to_return = message.text
+
+    if message.text is None:
+
+        return None
+
+    if " " not in text_to_return:
+
+        return None
+
+    try:
+
+        return message.text.split(None, 1)[1]
+
+    except IndexError:
+
+        return None
+
+@Client.on_message(filters.command(["video", "mp4"]))
+
+async def vsong(client, message: Message):
+
+    urlissed = get_text(message)
+
+    pablo = await client.send_message(
+
+        message.chat.id, f"**𝙵𝙸𝙽𝙳𝙸𝙽𝙶 𝚈𝙾𝚄𝚁 𝚅𝙸𝙳𝙴𝙾** `{urlissed}`"
+
+    )
+
+    if not urlissed:
+
+        await pablo.edit("Invalid Command Syntax Please Check help Menu To Know More!")
+
+        return
+
+    search = SearchVideos(f"{urlissed}", offset=1, mode="dict", max_results=1)
+
+    mi = search.result()
+
+    mio = mi["search_result"]
+
+    mo = mio[0]["link"]
+
+    thum = mio[0]["title"]
+
+    fridayz = mio[0]["id"]
+
+    mio[0]["channel"]
+
+    kekme = f"https://img.youtube.com/vi/{fridayz}/hqdefault.jpg"
+
+    await asyncio.sleep(0.6)
+
+    url = mo
+
+    sedlyf = wget.download(kekme)
+
+    opts = {
+
+        "format": "best",
+
+        "addmetadata": True,
+
+        "key": "FFmpegMetadata",
+
+        "prefer_ffmpeg": True,
+
+        "geo_bypass": True,
+
+        "nocheckcertificate": True,
+
+        "postprocessors": [{"key": "FFmpegVideoConvertor", "preferedformat": "mp4"}],
+
+        "outtmpl": "%(id)s.mp4",
+
+        "logtostderr": False,
+
+        "quiet": True,
+
+    }
+
+    try:
+
+        with YoutubeDL(opts) as ytdl:
+
+            ytdl_data = ytdl.extract_info(url, download=True)
+
+    except Exception as e:
+
+        await event.edit(event, f"**𝙳𝚘𝚠𝚗𝚕𝚘𝚊𝚍 𝙵𝚊𝚒𝚕𝚎𝚍 𝙿𝚕𝚎𝚊𝚜𝚎 𝚃𝚛𝚢 𝙰𝚐𝚊𝚒𝚗..♥️** \n**Error :** `{str(e)}`")
+
+        return
+
+    c_time = time.time()
+
+    file_stark = f"{ytdl_data['id']}.mp4"
+
+    capy = f"""
+
+**𝚃𝙸𝚃𝙻𝙴 :** [{thum}]({mo})
+
+**𝚁𝙴𝚀𝚄𝙴𝚂𝚃𝙴𝙳 𝙱𝚈 :** {message.from_user.mention}
+
+"""
+
+    await client.send_video(
+
+        message.chat.id,
+
+        video=open(file_stark, "rb"),
+
+        duration=int(ytdl_data["duration"]),
+
+        file_name=str(ytdl_data["title"]),
+
+        thumb=sedlyf,
+
+        caption=capy,
+
+        supports_streaming=True,        
+
+        reply_to_message_id=message.message_id 
+
+    )
+
+    await pablo.delete()
+
+    for files in (sedlyf, file_stark):
+
+        if files and os.path.exists(files):
+
+            os.remove(files)
+
+
+
+
+
